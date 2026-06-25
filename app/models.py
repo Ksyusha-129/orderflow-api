@@ -11,6 +11,7 @@ class OrderStatus(str, enum.Enum):
     PROCESSING = "processing"
     SHIPPED = "shipped"
     DELIVERED = "delivered"
+    CANCELLED = "cancelled"
 
 class Order(Base):
     __tablename__ = "orders"

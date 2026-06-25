@@ -71,3 +71,20 @@ def update_order(order_id: int, order_update: OrderUpdate, db: Session = Depends
     db.commit()
     db.refresh(db_order)
     return db_order
+
+@router.delete("/{order_id}", status_code=204)
+def delete_order(order_id:int, db: Session = Depends(get_db)):
+
+    db_order = db.query(Order).filter(Order.id == order_id).first()
+    if not db_order:
+        raise HTTPException(status_code=404, detail ="Order not found")
+    
+    if db_order.status not in [OrderStatus.DRAFT, OrderStatus.CANCELLED]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete order with status '{db_order.status.value}'. Only draft or cancelled orders can be deleted."
+        )
+    db.delete(db_order)
+    db.commit()
+
+    return None
