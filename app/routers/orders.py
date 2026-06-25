@@ -34,3 +34,40 @@ def get_order(order_id: int, db: Session = Depends(get_db)):
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     return order
+
+ALLOWED_TRANSITIONS = {
+    "draft": ["confirmed", "cancelled"],
+    "confirmed": ["processing"],
+    "processing": ["shipped", "cancelled"],
+    "shipped": ["delivered"],
+    "delivered": [], #Из статуса "Доставлен" нельзя перейти в др статусы
+    "cancelled": []
+}
+
+@router.patch("/{order_id}", response_model=OrderResponse)
+def update_order(order_id: int, order_update: OrderUpdate, db: Session = Depends(get_db)):
+    db_order = db.query(Order).filter(Order.id == order_id).first()
+    if not db_order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    if order_update.status:
+        current_status = db_order.status.value
+        new_status = order_update.status
+
+        allowed_next_statuses = ALLOWED_TRANSITIONS.get(current_status, [])
+
+        if new_status not in allowed_next_statuses:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid transition: from '{current_status}' to '{new_status.value}'. Allowed: {allowed_next_statuses}"
+            )
+        
+
+    update_data = order_update.model_dump(exclude_unset=True)
+
+    for key, value in update_data.items():
+        setattr(db_order, key, value)
+
+    db.commit()
+    db.refresh(db_order)
+    return db_order
